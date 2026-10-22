@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KIU self test</title>
+<style>
+  body { font-family: ui-monospace, Menlo, Consolas, monospace; margin: 0; background: #0f172a; color: #e2e8f0; }
+  iframe { position: absolute; left: -10000px; top: 0; border: 0; }
+  pre { padding: 12px; white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+<pre id="out">running…</pre>
+<script>
+(function () {
+  var out = document.getElementById('out');
+  var lines = [];
+  function log(s) { lines.push(s); out.textContent = lines.join('\n'); }
+  var errors = [];
+
+  function mkFrame(w, h) {
+    var f = document.createElement('iframe');
+    f.width = w; f.height = h;
+    f.style.width = w + 'px'; f.style.height = h + 'px';
+    document.body.appendChild(f);
+    return f;
+  }
+
+  function load(f, url) {
+    return new Promise(function (res, rej) {
+      f.onload = function () { res(); };
+      f.onerror = function () { rej(new Error('frame load failed')); };
+      f.src = url;
+    });
+  }
+
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function audit(doc, label) {
+    var sel = 'button, a[href], input, select, [role="button"], [role="tab"], [role="option"]';
+    var all = Array.prototype.slice.call(doc.querySelectorAll(sel)).filter(function (el) {
+      var r = el.getBoundingClientRect();
+      var cs = doc.defaultView.getComputedStyle(el);
+      return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+    });
+    var small = all.map(function (el) {
+      var r = el.getBoundingClientRect();
+      return {
+        tag: el.tagName.toLowerCase(),
+        cls: String(el.className).slice(0, 48),
+        t: (el.textContent || el.getAttribute('aria-label') || el.placeholder || '').trim().slice(0, 22),
+        w: Math.round(r.width), h: Math.round(r.height)
+      };
+    }).filter(function (o) { return o.w < 44 || o.h < 44; });
+    log('AUDIT[' + label + '] interactive=' + all.length + ' under44=' + small.length);
+    small.forEach(function (o) { log('   small -> ' + o.tag + ' ' + o.w + 'x' + o.h + ' "' + o.t + '" .' + o.cls); });
+    return small;
+  }
+
+  async function main() {
+    // ---------------------------------------------------------- mobile 800
+    var fm = mkFrame(800, 654);
+    await load(fm, '/index.html?selftest=mobile');
+    var w = fm.contentWindow, d = fm.contentDocument;
+    await sleep(1500);
+    w.addEventListener('error', function (e) { errors.push('mobile: ' + e.message); });
+
+    log('BOOT[mobile] data=' + !!w.KIU_DATA + ' app=' + !!w.KIU_APP + ' map=' + !!w.KIU_MAP + ' router=' + !!w.KIU_ROUTER);
+    log('BOOT[mobile] locations=' + (w.KIU_DATA ? w.KIU_DATA.locations.length : 0) +
+        ' cards=' + d.querySelectorAll('#slot-list-mobile .kiu-loc-main').length +
+        ' pins=' + d.querySelectorAll('.leaflet-marker-icon.kiu-pin-wrap').length +
+        ' planPaths=' + d.querySelectorAll('.leaflet-plan-pane svg path').length +
+        ' tiles=' + d.querySelectorAll('img.leaflet-tile-loaded').length);
+    log('BOOT[mobile] segments=' + d.querySelectorAll('.kiu-seg').length +
+        ' chips=' + d.querySelectorAll('.kiu-chip').length +
+        ' sheetTabs=' + d.querySelectorAll('.kiu-sheet-tab').length +
+        ' faq=' + d.querySelectorAll('.kiu-faq-q').length);
+
+    // ---- search ranking
+    var inp = d.querySelector('[data-role="search-input"]');
+    function q(text) {
+      inp.focus(); inp.value = text;
+      inp.dispatchEvent(new w.Event('input', { bubbles: true }));
+    }
+    function top(n) {
+      return Array.prototype.slice.call(d.querySelectorAll('#kiuSearchList [data-action="pick-search"]'))
+        .slice(0, n).map(function (b) {
+          var t = b.querySelector('.kiu-drop-title');
+          return t ? t.textContent.trim() : b.textContent.trim().slice(0, 24);
+        });
+    }
+    [['lib', 'Main University Library'], ['gate', 'Main Gate'], ['hostel', 'Student Hostels'],
+     ['atm', 'ATM'], ['hospital', 'KIU Teaching Hospital'], ['book', 'Bookshop']].forEach(function (pair) {
+      q(pair[0]); await sleep(120);
+      var res = top(2);
+      var ok = res.length && res[0].toLowerCase().indexOf(pair[1].toLowerCase()) !== -1;
+      log((ok ? 'PASS' : 'FAIL') + ' search "' + pair[0] + '" -> ' + JSON.stringify(res));
+    });
+
+    // ---- category filter
+    q(''); await sleep(150);
+    var segs = d.querySelectorAll('.kiu-seg');
+    segs[1].click(); await sleep(250);
+    var nAcademic = d.querySelectorAll('#slot-list-mobile .kiu-loc-main').length;
+    segs[0].click(); await sleep(250);
+    var nAll = d.querySelectorAll('#slot-list-mobile .kiu-loc-main').length;
+    log((nAcademic > 0 && nAcademic < nAll ? 'PASS' : 'FAIL') + ' category filter academic=' + nAcademic + ' all=' + nAll);
+
+    // ---- quick chip
+    var chip = Array.prototype.slice.call(d.querySelectorAll('.kiu-chip')).filter(function (c) {
+      return /library/i.test(c.textContent);
+    })[0];
+    chip.click(); await sleep(250);
+    var nChip = d.querySelectorAll('#slot-list-mobile .kiu-loc-main').length;
+    chip.click(); await sleep(200);
+    log((nChip === 1 ? 'PASS' : 'FAIL') + ' quick chip library -> ' + nChip + ' card(s)');
+
+    // ---- route
+    var from = d.querySelector('[data-role="route-from"]');
+    var to = d.querySelector('[data-role="route-to"]');
+    from.value = 'gate'; from.dispatchEvent(new w.Event('change', { bubbles: true }));
+    to.value = 'hospital'; to.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await sleep(150);
+    d.querySelector('[data-action="compute-route"]').click();
+    await sleep(1400);
+    var rtxt = d.querySelector('[data-role="route-results"]').textContent.replace(/\s+/g, ' ').trim();
+    var m = rtxt.match(/(\d+)\s*mDistance\s*(\d+)\s*minWalking time\s*(\d+)\s*Steps/);
+    log((m ? 'PASS' : 'FAIL') + ' route gate->hospital ' + (m ? m[1] + 'm / ' + m[2] + 'min / ' + m[3] + ' steps' : rtxt.slice(0, 120)));
+    log('       route pane paths=' + d.querySelectorAll('.leaflet-route-pane svg path').length +
+        ' traveller=' + d.querySelectorAll('.kiu-traveler').length);
+    log((/Head north|Turn|walkway|Arrive/i.test(rtxt) ? 'PASS' : 'FAIL') + ' route has turn-by-turn text');
+
+    // ---- swap + clear
+    d.querySelector('[data-action="swap-route"]').click(); await sleep(400);
+    var swapped = d.querySelector('[data-role="route-from"]').value === 'hospital';
+    log((swapped ? 'PASS' : 'FAIL') + ' swap route');
+    d.querySelector('[data-action="clear-route"]').click(); await sleep(400);
+    log((w.KIU_APP.state.route === null ? 'PASS' : 'FAIL') + ' clear route');
+
+    // ---- bookmarks
+    var bm = d.querySelector('[data-action="bookmark"][aria-label="Save place"]');
+    if (bm) { bm.click(); await sleep(300); }
+    var stored = w.localStorage.getItem('kiu.nav.bookmarks');
+    log((stored && stored.length > 2 ? 'PASS' : 'FAIL') + ' bookmark persisted -> ' + stored);
+
+    // ---- FAQ
+    var faq = d.querySelectorAll('.kiu-faq-q')[1];
+    var fi = faq.getAttribute('data-index');
+    faq.click(); await sleep(400);
+    var faq2 = Array.prototype.slice.call(d.querySelectorAll('.kiu-faq-q')).filter(function (x) {
+      return x.getAttribute('data-index') === fi;
+    })[0];
+    log((faq2.getAttribute('aria-expanded') === 'true' ? 'PASS' : 'FAIL') + ' faq ' + fi + ' expands');
+
+    // ---- sheet tabs
+    var st = d.querySelectorAll('.kiu-sheet-tab');
+    st[1].click(); await sleep(350);
+    var routeTabOk = !d.querySelector('[data-pane="route"]').classList.contains('hidden');
+    st[2].click(); await sleep(350);
+    var essTabOk = !d.querySelector('[data-pane="essentials"]').classList.contains('hidden');
+    st[0].click(); await sleep(300);
+    log((routeTabOk && essTabOk ? 'PASS' : 'FAIL') + ' sheet tabs switch');
+
+    // ---- locate + basemap
+    var locate = d.querySelector('[data-action="locate"]');
+    if (locate) { locate.click(); await sleep(1200); }
+    log((d.querySelectorAll('.kiu-me').length > 0 ? 'PASS' : 'FAIL') + ' mock locate marker');
+    var sat = d.querySelector('[data-basemap="satellite"]');
+    sat.click(); await sleep(900);
+    log((d.querySelectorAll('img.leaflet-tile-loaded').length > 0 ? 'PASS' : 'FAIL') + ' satellite tiles');
+
+    // ---- emergency dial + no external backend
+    log('INFO emergency links=' + d.querySelectorAll('a[href^="tel:"]').length);
+
+    audit(d, 'mobile 800x654');
+
+    // --------------------------------------------------------- desktop 1440
+    var fd = mkFrame(1440, 900);
+    await load(fd, '/index.html?selftest=desktop');
+    var w2 = fd.contentWindow, d2 = fd.contentDocument;
+    await sleep(1800);
+    w2.addEventListener('error', function (e) { errors.push('desktop: ' + e.message); });
+    var drawer = d2.getElementById('drawer');
+    var mapEl = d2.getElementById('map');
+    var dr = drawer.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
+    log('DESKTOP drawer=' + Math.round(dr.width) + 'x' + Math.round(dr.height) + ' @' + Math.round(dr.left) +
+        ' map=' + Math.round(mr.width) + 'x' + Math.round(mr.height) + ' @' + Math.round(mr.left) +
+        ' overflowX=' + (d2.documentElement.scrollWidth > d2.documentElement.clientWidth));
+    log('DESKTOP drawer visible=' + (dr.width > 0) + ' mobile sheet hidden=' +
+        (getComputedStyle(d2.getElementById('sheet')).display === 'none'));
+    audit(d2, 'desktop 1440x900');
+
+    log('ERRORS: ' + (errors.length ? errors.join(' ; ') : 'none'));
+    log('SELFTEST DONE');
+    document.title = 'SELFTEST DONE';
+  }
+
+  main().catch(function (e) {
+    log('FATAL: ' + (e && e.stack ? e.stack : e));
+    document.title = 'SELFTEST DONE';
+  });
+})();
+</script>
+</body>
+</html>

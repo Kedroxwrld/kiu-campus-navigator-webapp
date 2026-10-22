@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KIU Campus Navigator — Kampala International University, Kansanga</title>
+<meta name="description" content="Interactive campus map, turn-by-turn walking directions and visitor essentials for Kampala International University (KIU) Main Campus, Kansanga, Kampala, Uganda.">
+<meta name="theme-color" content="#006837">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23006837'/%3E%3Cpath d='M16 7 6 12l10 5 10-5-10-5z' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M11 14.5V20c0 1.4 2.2 2.6 5 2.6s5-1.2 5-2.6v-5.5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          cream: '#F8F9FA',
+          ink: '#1E293B',
+          brand: {
+            DEFAULT: '#006837', 50: '#E6F4EA', 100: '#CFEBD9', 200: '#A7D8BA',
+            300: '#6FBF8D', 400: '#2EA265', 500: '#10B981', 600: '#0E9A6E',
+            700: '#006837', 800: '#00522B', 900: '#003D21'
+          },
+          sage: '#E6F4EA',
+          sand: '#FCFAF5',
+          slateink: '#1E293B'
+        },
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif']
+        },
+        borderRadius: { '2xl': '1rem', '3xl': '1.5rem', '4xl': '2rem' },
+        boxShadow: {
+          soft: '0 10px 25px -5px rgba(0,0,0,0.05)',
+          lift: '0 18px 40px -18px rgba(15,23,42,0.30)',
+          sheet: '0 -12px 40px -12px rgba(15,23,42,0.22)',
+          pin: '0 6px 14px -4px rgba(15,23,42,0.35)'
+        },
+        transitionTimingFunction: { calm: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      }
+    }
+  };
+</script>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+
+<body class="min-h-screen bg-cream font-sans text-ink antialiased selection:bg-brand-100 selection:text-brand-900">
+
+<!-- ====================== ICON SPRITE ====================== -->
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.6 8.4-2 5.2-5.2 2 2-5.2 5.2-2z"/></symbol>
+  <symbol id="i-navigation" viewBox="0 0 24 24"><path d="m3 11 19-9-9 19-2-8-8-2z"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3z"/></symbol>
+  <symbol id="i-bookmark-filled" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3z" fill="currentColor"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5.5L12 2 4 5.5V12c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-heart-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/><path d="M20.8 6.6a4.6 4.6 0 0 0-7.8 3.2 4.6 4.6 0 0 0-7.8-3.2c-2 2.6-.3 6.3 7.8 12.2 8.1-5.9 9.8-9.6 7.8-12.2z" opacity=".0"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.6 2.6 0 1 1 3.5 2.4c-.8.4-.9 1.1-.9 1.9"/><path d="M12 16.8h.01"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3z"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h2.5a3.5 3.5 0 0 0 3.5-3.5v-7A3.5 3.5 0 0 1 18.5 5H15"/></symbol>
+  <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4" r="2"/><path d="m10 21 1.6-5.6L9 13l1-4.2 3.1 2.7 3.2 1.6"/><path d="M8 21h4"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4h13l-2.5 4L18 12H5"/></symbol>
+  <symbol id="i-door" viewBox="0 0 24 24"><path d="M14 3H6v18h8"/><path d="M14 3v18"/><circle cx="11" cy="12" r="1"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5"/><path d="M22 9v6"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M15 9h2a2 2 0 0 1 2 2v10"/><path d="M9 7h2M9 11h2M9 15h2"/></symbol>
+  <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4 8h12v6.5A4.5 4.5 0 0 1 11.5 19h-3A4.5 4.5 0 0 1 4 14.5V8z"/><path d="M16 9.5h1.8a2.5 2.5 0 0 1 0 5H16"/><path d="M3 22h15"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 16.5 19 18l1.5.5L19 19l-.5 1.5L18 19l-1.5-.5L18 18l.5-1.5z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17.5h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4 4 10-10"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+  <symbol id="i-hotel" viewBox="0 0 24 24"><path d="M3 19V5"/><path d="M3 9h18v10"/><path d="M3 15h18"/><circle cx="7.5" cy="12" r="1.4"/></symbol>
+  <symbol id="i-atm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 13h5M7 16h8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M8 7h8M8 11h6"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 2v4M14 2v4M10 18v4M14 18v4M2 10h4M2 14h4M18 10h4M18 14h4"/></symbol>
+  <symbol id="i-bus" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M3 10h18"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/><path d="M7 16v1M17 16v1"/></symbol>
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></symbol>
+  <symbol id="i-hospital" viewBox="0 0 24 24"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3z"/></symbol>
+</svg>
+
+<!-- ====================== APP SHELL ====================== -->
+<div class="relative min-h-screen lg:flex">
+
+  <!-- ---------- DESKTOP DRAWER ---------- -->
+  <aside id="drawer"
+         class="hidden lg:flex lg:w-[26.5rem] xl:w-[28rem] shrink-0 flex-col h-screen bg-white/92 backdrop-blur-xl border-r border-slate-200/70 z-30">
+    <div class="px-5 pt-5 pb-4 flex items-start gap-3">
+      <div class="h-11 w-11 shrink-0 rounded-2xl bg-brand-700 grid place-items-center shadow-soft">
+        <svg class="h-6 w-6 text-white"><use href="#i-compass"/></svg>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h1 class="text-[15px] font-extrabold tracking-tight text-ink leading-tight">KIU Campus Navigator</h1>
+        <p class="text-[12.5px] text-slate-500 leading-snug mt-0.5">
+          <span class="font-semibold text-brand-700">Main Campus</span> · Kansanga, Kampala
+        </p>
+      </div>
+      <button type="button" data-action="open-about"
+              class="h-11 w-11 shrink-0 grid place-items-center rounded-2xl text-slate-400 hover:text-brand-700 hover:bg-brand-50 transition-colors duration-200 ease-calm"
+              aria-label="About this navigator">
+        <svg class="h-5 w-5"><use href="#i-info"/></svg>
+      </button>
+    </div>
+
+    <div class="px-5 pb-4 space-y-3 border-b border-slate-100 bg-white/60">
+      <div id="slot-search-desktop"></div>
+      <div id="slot-segments-desktop"></div>
+      <div id="slot-chips-desktop"></div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto overscroll-contain scroll-slim px-5 py-5 space-y-7">
+      <section id="slot-route-desktop" aria-label="Directions"></section>
+      <section id="slot-list-desktop" aria-label="Campus locations"></section>
+      <section id="slot-essentials-desktop" aria-label="Campus essentials"></section>
+      <footer class="pt-2 pb-2 text-[11.5px] leading-relaxed text-slate-400">
+        <p class="font-semibold text-slate-500">Kampala International University · Kansanga Main Campus</p>
+        <p class="mt-1">Map and distances are an illustrative campus plan for navigation and wayfinding. Confirm opening hours and contacts with the University Registrar before you travel.</p>
+      </footer>
+    </div>
+  </aside>
+
+  <!-- ---------- MAP CANVAS ---------- -->
+  <main class="relative flex-1 h-[100dvh] lg:h-screen lg:ml-0">
+    <div id="map" class="absolute inset-0 z-0" role="application" aria-label="Interactive map of KIU Kansanga main campus"></div>
+
+    <!-- mobile floating top bar -->
+    <div class="lg:hidden absolute inset-x-0 top-0 z-[500] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pointer-events-none">
+      <div id="slot-search-mobile" class="pointer-events-auto"></div>
+      <div id="slot-chips-mobile" class="pointer-events-auto mt-2"></div>
+    </div>
+
+    <!-- map controls -->
+    <div class="absolute right-3 z-[600] flex flex-col gap-2 items-end"
+         style="bottom:calc(var(--sheet-offset, 0px) + 16px)">
+      <div class="hidden lg:flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-lift backdrop-blur">
+        <button type="button" data-action="zoom-in" class="h-12 w-12 grid place-items-center text-slate-600 hover:bg-brand-50 hover:text-brand-700 transition-colors duration-200" aria-label="Zoom in">
+          <svg class="h-5 w-5"><use href="#i-plus"/></svg>
+        </button>
+        <span class="h-px w-7 mx-auto bg-slate-200"></span>
+        <button type="button" data-action="zoom-out" class="h-12 w-12 grid place-items-center text-slate-600 hover:bg-brand-50 hover:text-brand-700 transition-colors duration-200" aria-label="Zoom out">
+          <svg class="h-5 w-5"><use href="#i-minus"/></svg>
+        </button>
+        <span class="h-px w-7 mx-auto bg-slate-200"></span>
+        <button type="button" data-action="locate" class="h-12 w-12 grid place-items-center text-slate-600 hover:bg-brand-50 hover:text-brand-700 transition-colors duration-200" aria-label="Find my location">
+          <svg class="h-5 w-5"><use href="#i-locate"/></svg>
+        </button>
+      </div>
+
+      <button type="button" data-action="locate"
+              class="lg:hidden h-12 w-12 grid place-items-center rounded-2xl border border-slate-200/80 bg-white/95 shadow-lift text-slate-600 active:scale-95 transition-transform duration-200"
+              aria-label="Find my location">
+        <svg class="h-5 w-5"><use href="#i-locate"/></svg>
+      </button>
+    </div>
+
+    <!-- basemap switcher -->
+    <div class="absolute left-3 top-3 z-[600] hidden lg:flex flex-col gap-2 items-start">
+      <div class="flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-lift backdrop-blur" role="group" aria-label="Map background">
+        <button type="button" data-basemap="plan" class="px-3.5 h-11 rounded-xl text-[13px] font-semibold transition-all duration-300 ease-calm bg-brand-700 text-white">Plan</button>
+        <button type="button" data-basemap="street" class="px-3.5 h-11 rounded-xl text-[13px] font-semibold transition-all duration-300 ease-calm text-slate-600 hover:bg-slate-100">Street</button>
+        <button type="button" data-basemap="satellite" class="px-3.5 h-11 rounded-xl text-[13px] font-semibold transition-all duration-300 ease-calm text-slate-600 hover:bg-slate-100">Satellite</button>
+      </div>
+      <button type="button" data-action="recenter"
+              class="h-11 px-4 flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/95 shadow-lift text-[13px] font-semibold text-slate-600 hover:text-brand-700 hover:bg-brand-50 transition-colors duration-200">
+        <svg class="h-4 w-4"><use href="#i-compass"/></svg> Recentre
+      </button>
+    </div>
+
+    <!-- legend -->
+    <div id="legend" class="absolute z-[600] left-3 bottom-4 hidden lg:block"></div>
+  </main>
+</div>
+
+<!-- ---------- MOBILE BOTTOM SHEET ---------- -->
+<section id="sheet"
+         class="lg:hidden fixed inset-x-0 bottom-0 z-[900] flex flex-col bg-white rounded-t-4xl shadow-sheet border-t border-slate-200/70"
+         style="height:88dvh; transform:translateY(72%);">
+  <div id="sheet-grip" class="pt-3.5 pb-3 flex justify-center cursor-grab touch-none select-none" role="button" tabindex="0" aria-label="Expand or collapse the panel">
+    <span class="h-1.5 w-11 rounded-full bg-slate-300"></span>
+  </div>
+  <div id="sheet-tabs" class="px-3 pb-2 flex gap-1.5" role="tablist" aria-label="Navigator sections"></div>
+  <div id="sheet-panes" class="relative flex-1 min-h-0 overflow-hidden">
+    <div data-pane="explore" class="absolute inset-0 overflow-y-auto overscroll-contain scroll-slim px-4 pb-8 pt-1" role="tabpanel">
+      <div id="slot-segments-mobile" class="mb-3"></div>
+      <div id="slot-list-mobile"></div>
+    </div>
+    <div data-pane="route" class="absolute inset-0 overflow-y-auto overscroll-contain scroll-slim px-4 pb-8 pt-1 hidden" role="tabpanel"></div>
+    <div data-pane="essentials" class="absolute inset-0 overflow-y-auto overscroll-contain scroll-slim px-4 pb-8 pt-1 hidden" role="tabpanel"></div>
+  </div>
+</section>
+
+<!-- floating action button (mobile) -->
+<button type="button" data-action="open-route"
+        class="lg:hidden fixed right-4 z-[880] h-14 w-14 grid place-items-center rounded-2xl bg-brand-700 text-white shadow-lift active:scale-95 transition-transform duration-200"
+        style="bottom:calc(var(--sheet-offset, 150px) + 16px)"
+        aria-label="Open directions">
+  <svg class="h-6 w-6"><use href="#i-navigation"/></svg>
+</button>
+
+<!-- ---------- WELCOME / ABOUT MODAL ---------- -->
+<div id="modal" class="fixed inset-0 z-[1000]" aria-hidden="true">
+  <div class="kiu-modal-backdrop absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-action="close-modal"></div>
+  <div class="absolute inset-0 grid place-items-center p-5 pointer-events-none">
+    <div id="modal-card"
+         class="pointer-events-auto w-full max-w-md bg-white rounded-3xl shadow-lift p-6 sm:p-7">
+      <div id="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- live region for announcements -->
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/js/router.js"></script>
+<script src="assets/js/map.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
